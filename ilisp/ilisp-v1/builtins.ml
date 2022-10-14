@@ -150,7 +150,8 @@ let rec eval_cond arg =
   | Cons (car,cdr) ->
     let result = eval_clause car in
     match result with
-      Some sexp -> eval sexp
+    | Some (Atom a) -> Atom a
+    | Some sexp -> eval sexp
     | None -> eval_cond cdr
 
 
@@ -235,7 +236,8 @@ let rec operation opp a =
   | Cons (s1, b) ->
       begin match b with
 	  Atom s2 -> opp (operation opp s1) (operation opp b)
-	| Cons _ -> opp (operation opp s1) (operation opp b)
+	| Cons (a, Atom "nil") ->opp (operation opp s1) (operation opp a)
+        | Cons _ -> opp (operation opp s1) (operation opp b)
       end
 
 let bin_operation opp a b =
@@ -255,28 +257,43 @@ let bin_operation opp a b =
 let eval_add arg1 =
   Atom (string_of_int (operation ( + ) arg1))
 
-let eval_sub arg1 =
-  Atom (string_of_int (operation ( - ) arg1 ))
+let sub_opp a b =
+    match a with
+      Atom s1 ->
+      begin match b with
+	  Atom s2 -> (int_of_string s1) - (int_of_string s2)
+	| Cons _ -> raise (Error "Sub take 2 integers")
+      end
+    | Cons (car1,cdr1) -> raise (Error "Sub take 2 integers")
+
+
+let eval_sub arg1 arg2 =
+  Atom (string_of_int (sub_opp arg1 arg2 ))
 
 let eval_mul arg1 =
   Atom (string_of_int (operation ( * ) arg1 ))
 
-let eval_leq arg1 arg2 =
+let eval_le arg1 arg2 =
   if bin_operation ( <= ) arg1 arg2 then Atom "t"
   else Atom "nil"
 
-let eval_lq arg1 arg2 =
-  if bin_operation ( < ) arg1 arg2 then Atom "t"
-  else Atom "nil"
-
-let eval_req arg1 arg2 =
+let eval_ge arg1 arg2 =
   if bin_operation ( >= ) arg1 arg2 then Atom "t"
   else Atom "nil"
 
-let eval_rq arg1 arg2 =
+let eval_lt arg1 arg2 =
+  if bin_operation ( < ) arg1 arg2 then Atom "t"
+  else Atom "nil"
+
+let eval_gt arg1 arg2 =
   if bin_operation ( > ) arg1 arg2 then Atom "t"
   else Atom "nil"
 
+let eval_not arg1 =
+  match arg1 with
+    | Atom "nil" -> Atom "t"
+    | Atom "t" -> Atom "nil"
+    | _ -> raise (Error "not take a boolean")
 
 (* table of builtin functions *)
 let all_builtins =
@@ -296,11 +313,12 @@ let all_builtins =
     "equal" , BuiltinFn2 eval_equal;
     "progn", BuiltinFnN eval_progn;
     "add", BuiltinFnN eval_add;
-    "sub", BuiltinFnN eval_sub;
+    "sub", BuiltinFn2 eval_sub;
     "mul", BuiltinFnN eval_mul;
-    "leq", BuiltinFn2 eval_leq;
-    "lq", BuiltinFn2 eval_leq;
-    "req", BuiltinFn2 eval_req;
-    "rq", BuiltinFn2 eval_leq;
+    "le", BuiltinFn2 eval_le;
+    "ge", BuiltinFn2 eval_ge;
+    "lt", BuiltinFn2 eval_lt;
+    "gt", BuiltinFn2 eval_gt;
+    "not", BuiltinFn1 eval_not;
   ]
 
